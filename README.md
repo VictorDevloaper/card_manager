@@ -87,4 +87,5 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo LICENSE para d
 
 <p align="center">
   Feito por <strong>VictorDevloaper</strong>
+    linkedin: https://www.linkedin.com/in/victor-melo21/
 </p>
