@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #6366f1;
+  --bg-darker: #050510;
+  --text-primary: #f8fafc;
+}
+
+/* Reset & Base */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-darker);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar - Sleek & Thin */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.4);
+}
+
+/* Class Utilities Refined */
+
+/* Glass Effect */
+.glass {
+  background: rgba(19, 22, 32, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Button Refinements */
+.btn-primary {
+  @apply bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:bg-indigo-500 active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-transparent border border-slate-700 text-slate-300 px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:border-indigo-500 hover:text-indigo-400;
+}
+
+.input-field {
+  @apply w-full bg-[#0B0F19] border border-slate-800 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600;
+}
+
+/* Animations - Smoother */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 3s ease infinite;
+}
+
+/* Avatar Gradients */
+.avatar-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+/* Table Styles - Professional Data Grid */
+.modern-table {
+  @apply w-full border-collapse text-left;
+}
+
+.modern-table th {
+  @apply py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-indigo-500/10;
+}
+
+.modern-table td {
+  @apply py-5 px-6 border-b border-slate-800/50 text-sm text-slate-300;
+}
+
+.modern-table tr:last-child td {
+  @apply border-b-0;
+}
+
+.modern-table tr:hover td {
+  @apply bg-white/[0.02];
+}
+
+/* Icon Backgrounds */
+.icon-bg-primary {
+  @apply bg-indigo-500/10 text-indigo-400;
+}
+
+.icon-bg-success {
+  @apply bg-emerald-500/10 text-emerald-400;
+}
+
+.icon-bg-warning {
+  @apply bg-amber-500/10 text-amber-400;
+}
+
+.icon-bg-cyan {
+  @apply bg-cyan-500/10 text-cyan-400;
+}
+
+/* Selection */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: white;
+}
