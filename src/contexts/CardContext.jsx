@@ -68,7 +68,8 @@ export function CardProvider({ children }) {
             return null
         }
         setCards(prev => [...prev, data])
-        if (cards.length === 0) setSelectedCardId(data.id)
+        // Sempre seleciona o novo cartão quando adicionado
+        setSelectedCardId(data.id)
         return data
     }
 
