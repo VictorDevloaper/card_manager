@@ -86,6 +86,8 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo LICENSE para d
 ---
 
 <p align="center">
-  Feito por <strong>VictorDevloaper</strong>
-   <break> linkedin: https://www.linkedin.com/in/victor-melo21/ <\break>
+  Feito por <strong>VictorDevloaper</strong><br>
+  <a href="https://www.linkedin.com/in/victor-melo21/">
+    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
+  </a>
 </p>
