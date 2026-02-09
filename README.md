@@ -79,11 +79,6 @@ npm run build
 **Diretório de Saída:**
 `dist`
 
-## 📄 Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo LICENSE para detalhes.
-
----
 
 <p align="center">
   Feito por <strong>VictorDevloaper</strong><br>
