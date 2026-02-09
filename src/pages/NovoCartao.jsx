@@ -51,7 +51,7 @@ export default function NovoCartao() {
                                     type="text"
                                     value={formData.nome}
                                     onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                                    className="input-field pl-12"
+                                    className="input-field !pl-12"
                                     placeholder="Ex: Nubank Violeta"
                                     required
                                 />

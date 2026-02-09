@@ -68,7 +68,7 @@ export function CardProvider({ children }) {
             return null
         }
         setCards(prev => [...prev, data])
-        if (cards.length === 1) setSelectedCardId(data.id)
+        if (cards.length === 0) setSelectedCardId(data.id)
         return data
     }
 
