@@ -13,7 +13,9 @@ import {
     UserPlus,
     Wallet,
     ShoppingBag,
-    Users
+    Users,
+    CreditCard,
+    ChevronDown
 } from 'lucide-react'
 
 function Modal({ isOpen, onClose, title, children }) {
@@ -49,13 +51,17 @@ export default function Devedores() {
         devedores,
         addDevedor,
         removeDevedor,
-        purchases
+        purchases,
+        cards,
+        setSelectedCardId
     } = useCards() || {
         selectedCard: { nome: 'Cartão' },
         devedores: [],
         addDevedor: () => { },
         removeDevedor: () => { },
-        purchases: []
+        purchases: [],
+        cards: [],
+        setSelectedCardId: () => { }
     }
 
     const [search, setSearch] = useState('')
@@ -148,9 +154,21 @@ export default function Devedores() {
                         </div>
                         <h1 className="text-4xl font-bold text-white tracking-tight">Devedores</h1>
                     </div>
-                    <p className="text-slate-400 text-lg">
-                        Gerenciando usuários do cartão <span className="text-white font-semibold">{selectedCard?.nome}</span>
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-slate-400 text-lg">Gerenciando usuários do cartão</p>
+                        <div className="relative">
+                            <select
+                                value={selectedCard?.id || ''}
+                                onChange={(e) => setSelectedCardId(parseInt(e.target.value) || e.target.value)}
+                                className="appearance-none bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-semibold px-4 py-2 pr-10 rounded-xl cursor-pointer hover:bg-indigo-500/20 transition-all text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            >
+                                {cards.map(c => (
+                                    <option key={c.id} value={c.id} className="bg-[#131620] text-white">{c.nome}</option>
+                                ))}
+                            </select>
+                            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" />
+                        </div>
+                    </div>
                 </div>
                 <div className="flex gap-3">
                     {selectedDevedores.length > 0 && (

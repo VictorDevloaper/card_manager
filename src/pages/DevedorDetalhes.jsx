@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, Link } from 'react-router-dom'
 import { useCards } from '../contexts/CardContext'
 import {
@@ -57,8 +58,8 @@ function EditPurchaseModal({ isOpen, onClose, compra, onSave }) {
         }
     }
 
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 min-h-screen">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
             <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl animate-fadeInUp" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center">
@@ -109,7 +110,8 @@ function EditPurchaseModal({ isOpen, onClose, compra, onSave }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
 
@@ -395,8 +397,8 @@ export default function DevedorDetalhes() {
                     <button
                         onClick={() => setCardFilter('all')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${cardFilter === 'all'
-                                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                            ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
                             }`}
                     >
                         Todos
@@ -406,8 +408,8 @@ export default function DevedorDetalhes() {
                             key={card.id}
                             onClick={() => setCardFilter(card.id)}
                             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${cardFilter === card.id
-                                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
                                 }`}
                         >
                             {card.nome}
