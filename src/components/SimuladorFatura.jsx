@@ -1,44 +1,59 @@
 import React, { useState } from 'react'
-import { Sparkles, Calculator, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Sparkles, Calculator, X, Plus, Trash2, ShoppingBag } from 'lucide-react'
 import { generateProjecao } from '../utils/finance'
 
 export default function SimuladorFatura({ isOpen, onClose, cardId, purchases, adjustments }) {
-    const [simulation, setSimulation] = useState({
-        valor: '',
-        parcelas: 1
-    })
+    const [compras, setCompras] = useState([
+        { id: 1, descricao: '', valor: '', parcelas: 1 }
+    ])
+    const [nextId, setNextId] = useState(2)
 
     if (!isOpen) return null
 
-    // Create a virtual purchase
-    const valorFloat = parseFloat(simulation.valor || 0)
-    const parcelasInt = parseInt(simulation.parcelas || 1)
-
-    // Calculate projection WITHOUT simulation
-    const currentProjection = generateProjecao(cardId, purchases, adjustments)
-
-    // Calculate projection WITH simulation
-    // We add a virtual purchase to the existing list
-    const virtualPurchase = {
-        id: 'sim-1',
-        cardId: cardId,
-        valorTotal: valorFloat,
-        numParcelas: parcelasInt,
-        dataCompra: new Date().toISOString(), // Today
-        devedorNome: 'Simulação',
-        descricao: 'Nova Compra Simulada'
+    const addCompra = () => {
+        setCompras(prev => [...prev, { id: nextId, descricao: '', valor: '', parcelas: 1 }])
+        setNextId(prev => prev + 1)
     }
 
+    const removeCompra = (id) => {
+        if (compras.length <= 1) return
+        setCompras(prev => prev.filter(c => c.id !== id))
+    }
+
+    const updateCompra = (id, field, value) => {
+        setCompras(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
+    }
+
+    // Build virtual purchases for simulation
+    const virtualPurchases = compras
+        .filter(c => parseFloat(c.valor) > 0)
+        .map(c => ({
+            id: `sim-${c.id}`,
+            cardId: cardId,
+            valorTotal: parseFloat(c.valor || 0),
+            numParcelas: parseInt(c.parcelas || 1),
+            dataCompra: new Date().toISOString(),
+            devedorNome: 'Simulação',
+            descricao: c.descricao || `Compra Simulada ${c.id}`
+        }))
+
+    // Calculate projections
+    const currentProjection = generateProjecao(cardId, purchases, adjustments)
     const simulatedProjection = generateProjecao(
         cardId,
-        [...purchases, virtualPurchase],
+        [...purchases, ...virtualPurchases],
         adjustments
     )
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    // Summary
+    const totalSimulado = virtualPurchases.reduce((acc, p) => acc + p.valorTotal, 0)
+    const hasSimulation = virtualPurchases.length > 0
+
+    return createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl animate-fadeInUp flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl animate-fadeInUp flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-800 shrink-0">
@@ -54,35 +69,88 @@ export default function SimuladorFatura({ isOpen, onClose, cardId, purchases, ad
                 </div>
 
                 <div className="overflow-y-auto custom-scrollbar p-6">
-                    {/* Inputs */}
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-400 mb-2">Valor (R$)</label>
-                            <input
-                                type="number"
-                                value={simulation.valor}
-                                onChange={e => setSimulation(prev => ({ ...prev, valor: e.target.value }))}
-                                className="input-field"
-                                placeholder="0.00"
-                                autoFocus
-                            />
+                    {/* Compras List */}
+                    <div className="space-y-3 mb-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Compras Adicionais</h3>
+                            <span className="text-xs text-slate-500">{compras.length} {compras.length === 1 ? 'compra' : 'compras'}</span>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-400 mb-2">Parcelas</label>
-                            <select
-                                value={simulation.parcelas}
-                                onChange={e => setSimulation(prev => ({ ...prev, parcelas: e.target.value }))}
-                                className="input-field"
-                            >
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
-                                    <option key={n} value={n}>{n}x</option>
-                                ))}
-                            </select>
-                        </div>
+
+                        {compras.map((compra, index) => (
+                            <div key={compra.id} className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/30 space-y-3 animate-fadeInUp" style={{ animationDelay: `${index * 50}ms` }}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <ShoppingBag size={14} className="text-indigo-400" />
+                                        <span className="text-sm font-medium text-slate-300">Compra {index + 1}</span>
+                                    </div>
+                                    {compras.length > 1 && (
+                                        <button
+                                            onClick={() => removeCompra(compra.id)}
+                                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 mb-1">Descrição</label>
+                                        <input
+                                            type="text"
+                                            value={compra.descricao}
+                                            onChange={e => updateCompra(compra.id, 'descricao', e.target.value)}
+                                            className="input-field text-sm"
+                                            placeholder="Ex: Celular"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 mb-1">Valor (R$)</label>
+                                        <input
+                                            type="number"
+                                            value={compra.valor}
+                                            onChange={e => updateCompra(compra.id, 'valor', e.target.value)}
+                                            className="input-field text-sm"
+                                            placeholder="0.00"
+                                            autoFocus={index === 0}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 mb-1">Parcelas</label>
+                                        <select
+                                            value={compra.parcelas}
+                                            onChange={e => updateCompra(compra.id, 'parcelas', e.target.value)}
+                                            className="input-field text-sm"
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map(n => (
+                                                <option key={n} value={n}>{n}x</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        <button
+                            onClick={addCompra}
+                            className="w-full p-3 rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-500/50 text-slate-500 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                            <Plus size={16} />
+                            Adicionar outra compra
+                        </button>
                     </div>
 
+                    {/* Summary */}
+                    {hasSimulation && (
+                        <div className="mb-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-indigo-300">Total simulado ({virtualPurchases.length} {virtualPurchases.length === 1 ? 'compra' : 'compras'})</span>
+                                <span className="text-white font-bold text-lg">R$ {totalSimulado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Results */}
-                    {valorFloat > 0 && (
+                    {hasSimulation && (
                         <div className="space-y-4 animate-fadeInUp">
                             <div className="flex items-center gap-2 mb-2">
                                 <Sparkles size={16} className="text-emerald-400" />
@@ -115,17 +183,26 @@ export default function SimuladorFatura({ isOpen, onClose, cardId, purchases, ad
                                 })}
                             </div>
 
-                            <div className="mt-4 pt-4 border-t border-slate-800 text-center">
-                                <p className="text-slate-400 text-sm">
-                                    Total da Compra: <span className="text-white font-bold">R$ {valorFloat.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                    <span className="mx-2">•</span>
-                                    Parcela Mensal: <span className="text-white font-bold">R$ {(valorFloat / parcelasInt).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                </p>
+                            {/* Per-purchase breakdown */}
+                            <div className="mt-4 pt-4 border-t border-slate-800">
+                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Detalhamento por compra</p>
+                                <div className="space-y-2">
+                                    {virtualPurchases.map(vp => (
+                                        <div key={vp.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-slate-800/20">
+                                            <span className="text-slate-400">{vp.descricao}</span>
+                                            <div className="text-slate-300">
+                                                <span className="font-bold text-white">R$ {vp.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-slate-500 ml-1">em {vp.numParcelas}x de R$ {(vp.valorTotal / vp.numParcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
