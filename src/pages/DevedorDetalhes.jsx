@@ -12,10 +12,107 @@ import {
     ChevronDown,
     Wallet,
     CheckCircle2,
-    AlertTriangle
+    AlertTriangle,
+    Edit2,
+    Save,
+    X
 } from 'lucide-react'
 
-function CompraCard({ compra, onToggleParcela }) {
+function EditPurchaseModal({ isOpen, onClose, compra, onSave }) {
+    const [dataCompra, setDataCompra] = useState('')
+    const [parcelasPagas, setParcelasPagas] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    if (!isOpen || !compra) return null
+
+    const numParcelas = compra.numParcelas || compra.num_parcelas
+    const currentDataCompra = compra.dataCompra || compra.data_compra || ''
+    const currentParcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
+
+    const handleOpen = () => {
+        setDataCompra(currentDataCompra)
+        setParcelasPagas(currentParcelasPagas.toString())
+    }
+
+    // Initialize values when modal opens
+    if (dataCompra === '' && parcelasPagas === '') {
+        setDataCompra(currentDataCompra)
+        setParcelasPagas(currentParcelasPagas.toString())
+    }
+
+    const handleSave = async () => {
+        setIsSubmitting(true)
+        try {
+            await onSave(compra.id, {
+                data_compra: dataCompra,
+                parcelas_pagas: parseInt(parcelasPagas) || 0
+            })
+            onClose()
+        } catch (err) {
+            console.error('Erro ao salvar:', err)
+            alert('Erro ao salvar alterações.')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl animate-fadeInUp" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h3 className="font-bold text-white">Editar Compra</h3>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-6 space-y-5">
+                    <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                        <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Compra</p>
+                        <p className="text-white font-medium">{compra.descricao}</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">Data da Compra</label>
+                        <input
+                            type="date"
+                            value={dataCompra}
+                            onChange={e => setDataCompra(e.target.value)}
+                            className="input-field"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                            Parcelas Já Pagas (de {numParcelas} total)
+                        </label>
+                        <input
+                            type="number"
+                            value={parcelasPagas}
+                            onChange={e => setParcelasPagas(e.target.value)}
+                            className="input-field"
+                            min="0"
+                            max={numParcelas}
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSubmitting}
+                            className="btn-primary flex-1 flex justify-center items-center gap-2"
+                        >
+                            {isSubmitting ? 'Salvando...' : <><Save size={18} /> Salvar</>}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function CompraCard({ compra, onToggleParcela, onEditCompra }) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
@@ -77,8 +174,20 @@ function CompraCard({ compra, onToggleParcela }) {
                                 {numParcelas}x de R$ {valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
-                        <div className={`p-2 rounded-xl transition-all duration-300 ${isExpanded ? 'bg-indigo-500/20 rotate-180' : 'bg-slate-700/50'}`}>
-                            <ChevronDown size={20} className={isExpanded ? 'text-indigo-400' : ''} />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onEditCompra(compra)
+                                }}
+                                className="p-2 rounded-xl bg-slate-700/50 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-all"
+                                title="Editar compra"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                            <div className={`p-2 rounded-xl transition-all duration-300 ${isExpanded ? 'bg-indigo-500/20 rotate-180' : 'bg-slate-700/50'}`}>
+                                <ChevronDown size={20} className={isExpanded ? 'text-indigo-400' : ''} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -128,8 +237,10 @@ function CompraCard({ compra, onToggleParcela }) {
                             >
                                 <div className="flex items-center gap-4">
                                     <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation()
+                                            e.preventDefault()
                                             onToggleParcela(compra.id, parcela.numero, parcela.pago)
                                         }}
                                         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 cursor-pointer
@@ -170,10 +281,12 @@ export default function DevedorDetalhes() {
         updatePurchase: () => { }
     }
 
-    // Find the actual debtor by ID (parse to number for comparison)
+    const [editingCompra, setEditingCompra] = useState(null)
+
+    // Find the actual debtor by ID
     const devedor = devedores.find(d => d.id === parseInt(id) || d.id === id)
 
-    // Filter purchases for this debtor (and optionally for the selected card)
+    // Filter purchases for this debtor
     const devedorPurchases = useMemo(() => {
         if (!devedor) return []
         return purchases.filter(p =>
@@ -183,10 +296,19 @@ export default function DevedorDetalhes() {
     }, [devedor, purchases, selectedCard])
 
     const handleToggleParcela = async (purchaseId, parcelaNumero, isPago) => {
-        // If currently paid, uncheck it (set parcelas_pagas to parcelaNumero - 1)
-        // If not paid, mark it as paid (set parcelas_pagas to parcelaNumero)
         const newParcelasPagas = isPago ? parcelaNumero - 1 : parcelaNumero
-        await updatePurchase(purchaseId, { parcelas_pagas: newParcelasPagas })
+        try {
+            const result = await updatePurchase(purchaseId, { parcelas_pagas: newParcelasPagas })
+            if (!result) {
+                console.error('updatePurchase retornou null para purchaseId:', purchaseId)
+            }
+        } catch (err) {
+            console.error('Erro no toggle:', err)
+        }
+    }
+
+    const handleEditSave = async (purchaseId, updatedFields) => {
+        await updatePurchase(purchaseId, updatedFields)
     }
 
     if (!devedor) {
@@ -302,12 +424,24 @@ export default function DevedorDetalhes() {
                     <div className="space-y-5">
                         {devedorPurchases.map((compra, index) => (
                             <div key={compra.id} style={{ animationDelay: `${(index + 2) * 100}ms` }}>
-                                <CompraCard compra={compra} onToggleParcela={handleToggleParcela} />
+                                <CompraCard
+                                    compra={compra}
+                                    onToggleParcela={handleToggleParcela}
+                                    onEditCompra={(c) => setEditingCompra(c)}
+                                />
                             </div>
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Edit Modal */}
+            <EditPurchaseModal
+                isOpen={!!editingCompra}
+                onClose={() => setEditingCompra(null)}
+                compra={editingCompra}
+                onSave={handleEditSave}
+            />
         </div>
     )
 }
