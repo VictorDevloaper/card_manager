@@ -57,7 +57,7 @@ function EditPurchaseModal({ isOpen, onClose, compra, onSave }) {
     }
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 min-h-screen">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
             <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl animate-fadeInUp" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center">
