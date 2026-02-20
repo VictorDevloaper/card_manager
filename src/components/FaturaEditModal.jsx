@@ -31,7 +31,6 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
         }
     }
 
-    return (
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 min-h-screen overflow-y-auto">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
