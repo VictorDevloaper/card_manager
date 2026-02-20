@@ -15,7 +15,8 @@ import {
     AlertTriangle,
     Edit2,
     Save,
-    X
+    X,
+    CreditCard
 } from 'lucide-react'
 
 function EditPurchaseModal({ isOpen, onClose, compra, onSave }) {
@@ -274,26 +275,33 @@ function CompraCard({ compra, onToggleParcela, onEditCompra }) {
 
 export default function DevedorDetalhes() {
     const { id } = useParams()
-    const { devedores, purchases, selectedCard, updatePurchase } = useCards() || {
+    const { devedores, purchases, cards, selectedCard, updatePurchase } = useCards() || {
         devedores: [],
         purchases: [],
+        cards: [],
         selectedCard: null,
         updatePurchase: () => { }
     }
 
     const [editingCompra, setEditingCompra] = useState(null)
+    // Local card filter: 'all' or a card id
+    const [cardFilter, setCardFilter] = useState(selectedCard?.id || 'all')
 
     // Find the actual debtor by ID
     const devedor = devedores.find(d => d.id === parseInt(id) || d.id === id)
 
-    // Filter purchases for this debtor
+    // Filter purchases for this debtor using local card filter
     const devedorPurchases = useMemo(() => {
         if (!devedor) return []
-        return purchases.filter(p =>
-            (p.devedorId === devedor.id || p.devedor_id === devedor.id) &&
-            (selectedCard ? (p.cardId === selectedCard.id || p.card_id === selectedCard.id) : true)
-        )
-    }, [devedor, purchases, selectedCard])
+        return purchases.filter(p => {
+            const matchDevedor = (p.devedorId === devedor.id || p.devedor_id === devedor.id)
+            if (cardFilter === 'all') return matchDevedor
+            const pCardId = p.cardId || p.card_id
+            return matchDevedor && pCardId === cardFilter
+        })
+    }, [devedor, purchases, cardFilter])
+
+    const selectedFilterCard = cards.find(c => c.id === cardFilter)
 
     const handleToggleParcela = async (purchaseId, parcelaNumero, isPago) => {
         const newParcelasPagas = isPago ? parcelaNumero - 1 : parcelaNumero
@@ -376,6 +384,37 @@ export default function DevedorDetalhes() {
                     </Link>
                 </div>
             </div>
+
+            {/* Card Filter */}
+            {cards.length > 1 && (
+                <div className="animate-fadeInUp flex flex-wrap items-center gap-3" style={{ animationDelay: '50ms' }}>
+                    <div className="flex items-center gap-2 text-slate-400 mr-2">
+                        <CreditCard size={18} />
+                        <span className="text-sm font-medium">Cartão:</span>
+                    </div>
+                    <button
+                        onClick={() => setCardFilter('all')}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${cardFilter === 'all'
+                                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                            }`}
+                    >
+                        Todos
+                    </button>
+                    {cards.map(card => (
+                        <button
+                            key={card.id}
+                            onClick={() => setCardFilter(card.id)}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${cardFilter === card.id
+                                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                                }`}
+                        >
+                            {card.nome}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
