@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Edit2, Trash2, X, AlertTriangle, Save, Calendar } from 'lucide-react'
+import { Edit2, Trash2, X, AlertTriangle, Save, Calendar, CheckCircle } from 'lucide-react'
 import { useCards } from '../contexts/CardContext'
 
 export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
-    const { addAdjustment } = useCards()
-    const [mode, setMode] = useState('menu') // menu, edit, delete
+    const { addAdjustment, updatePurchase } = useCards()
+    const [mode, setMode] = useState('menu') // menu, edit, delete, date, paid
     const [editValue, setEditValue] = useState('')
+    const [editDate, setEditDate] = useState('')
+    const [editPagas, setEditPagas] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     if (!isOpen || !selectedItem) return null
@@ -14,21 +16,38 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
     const handleSave = async () => {
         setIsSubmitting(true)
         try {
-            await addAdjustment({
-                purchaseId: selectedItem.purchaseId,
-                parcelaIndex: selectedItem.parcelaIndex,
-                isDeleted: mode === 'delete',
-                customValue: mode === 'edit' ? parseFloat(editValue) : null,
-                // customDate: null // Not implementing date shift for now to keep simple
-            })
+            if (mode === 'paid') {
+                // Update parcelas_pagas directly on the purchase record
+                await updatePurchase(selectedItem.purchaseId, {
+                    parcelas_pagas: parseInt(editPagas)
+                })
+            } else {
+                // Use adjustment system for edit/delete/date
+                await addAdjustment({
+                    purchaseId: selectedItem.purchaseId,
+                    parcelaIndex: selectedItem.parcelaIndex,
+                    isDeleted: mode === 'delete',
+                    customValue: mode === 'edit' ? parseFloat(editValue) : null,
+                    customDate: mode === 'date' ? editDate : null,
+                })
+            }
             onClose()
             setMode('menu')
             setEditValue('')
+            setEditDate('')
+            setEditPagas('')
         } catch (error) {
             console.error(error)
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const resetAndGoBack = () => {
+        setMode('menu')
+        setEditValue('')
+        setEditDate('')
+        setEditPagas('')
     }
 
     return createPortal(
@@ -68,6 +87,32 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
                             </button>
 
                             <button
+                                onClick={() => { setMode('date') }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 border border-transparent transition-all group"
+                            >
+                                <div className="p-2 bg-slate-700 rounded-lg group-hover:bg-amber-500/20 text-slate-300 group-hover:text-amber-400">
+                                    <Calendar size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-slate-200">Alterar Data</p>
+                                    <p className="text-xs text-slate-500">Mudar a data de vencimento desta parcela</p>
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => { setMode('paid'); setEditPagas((selectedItem.parcelasPagas || 0).toString()) }}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 hover:bg-teal-500/10 hover:text-teal-400 hover:border-teal-500/30 border border-transparent transition-all group"
+                            >
+                                <div className="p-2 bg-slate-700 rounded-lg group-hover:bg-teal-500/20 text-slate-300 group-hover:text-teal-400">
+                                    <CheckCircle size={18} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-slate-200">Parcelas Pagas</p>
+                                    <p className="text-xs text-slate-500">Informar quantas parcelas já foram pagas</p>
+                                </div>
+                            </button>
+
+                            <button
                                 onClick={() => setMode('delete')}
                                 className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 border border-transparent transition-all group"
                             >
@@ -95,7 +140,56 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
                                 />
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setMode('menu')} className="btn-secondary flex-1">Voltar</button>
+                                <button onClick={resetAndGoBack} className="btn-secondary flex-1">Voltar</button>
+                                <button onClick={handleSave} disabled={isSubmitting} className="btn-primary flex-1 flex justify-center items-center gap-2">
+                                    {isSubmitting ? 'Salvando...' : <><Save size={18} /> Salvar</>}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'date' && (
+                        <div className="space-y-4 animate-fadeInUp">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Nova Data de Vencimento</label>
+                                <input
+                                    type="date"
+                                    value={editDate}
+                                    onChange={e => setEditDate(e.target.value)}
+                                    className="input-field"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={resetAndGoBack} className="btn-secondary flex-1">Voltar</button>
+                                <button onClick={handleSave} disabled={isSubmitting || !editDate} className="btn-primary flex-1 flex justify-center items-center gap-2">
+                                    {isSubmitting ? 'Salvando...' : <><Save size={18} /> Salvar</>}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'paid' && (
+                        <div className="space-y-4 animate-fadeInUp">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">
+                                    Parcelas Já Pagas (de {selectedItem.numParcelas || '?'} total)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editPagas}
+                                    onChange={e => setEditPagas(e.target.value)}
+                                    className="input-field"
+                                    min="0"
+                                    max={(selectedItem.numParcelas || 1) - 1}
+                                    autoFocus
+                                />
+                                <p className="text-xs text-slate-500 mt-2">
+                                    As parcelas marcadas como pagas serão removidas das projeções futuras.
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={resetAndGoBack} className="btn-secondary flex-1">Voltar</button>
                                 <button onClick={handleSave} disabled={isSubmitting} className="btn-primary flex-1 flex justify-center items-center gap-2">
                                     {isSubmitting ? 'Salvando...' : <><Save size={18} /> Salvar</>}
                                 </button>
@@ -113,7 +207,7 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
                                 Você vai remover a parcela <span className="text-white font-bold">{selectedItem.parcela}</span> desta compra na fatura atual. O valor será abatido do total.
                             </p>
                             <div className="flex gap-3 pt-2">
-                                <button onClick={() => setMode('menu')} className="btn-secondary flex-1">Cancelar</button>
+                                <button onClick={resetAndGoBack} className="btn-secondary flex-1">Cancelar</button>
                                 <button onClick={handleSave} disabled={isSubmitting} className="w-full py-2.5 rounded-xl font-bold bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg shadow-red-500/20 flex-1 flex justify-center items-center gap-2">
                                     {isSubmitting ? 'Removendo...' : <><Trash2 size={18} /> Confirmar</>}
                                 </button>

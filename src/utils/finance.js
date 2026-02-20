@@ -60,7 +60,9 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
                     parcela: `${parcelaIndex}/${compra.numParcelas}`,
                     valor: valorParcela,
                     purchaseId: compra.id,
-                    parcelaIndex: parcelaIndex
+                    parcelaIndex: parcelaIndex,
+                    numParcelas: compra.numParcelas,
+                    parcelasPagas: parcelasPagas
                 })
 
                 total += valorParcela

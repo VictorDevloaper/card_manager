@@ -160,6 +160,23 @@ export function CardProvider({ children }) {
         setPurchases(prev => prev.filter(p => p.id !== id))
     }
 
+    const updatePurchase = async (id, updatedFields) => {
+        const { data, error } = await supabase
+            .from('purchases')
+            .update(updatedFields)
+            .eq('id', id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Erro ao atualizar compra:', error)
+            alert('Erro ao atualizar compra.')
+            return null
+        }
+        setPurchases(prev => prev.map(p => p.id === id ? data : p))
+        return data
+    }
+
     const addAdjustment = async (adjustmentData) => {
         const { data, error } = await supabase
             .from('purchase_adjustments')
@@ -226,8 +243,7 @@ export function CardProvider({ children }) {
             purchases: normalizedPurchases,
             addPurchase,
             removePurchase,
-            adjustments: normalizedAdjustments,
-            addAdjustment,
+            updatePurchase,
             adjustments: normalizedAdjustments,
             addAdjustment
         }}>
