@@ -15,7 +15,7 @@ import {
     AlertTriangle
 } from 'lucide-react'
 
-function CompraCard({ compra }) {
+function CompraCard({ compra, onToggleParcela }) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
@@ -127,15 +127,19 @@ function CompraCard({ compra }) {
                                 style={{ animationDelay: `${index * 30}ms` }}
                             >
                                 <div className="flex items-center gap-4">
-                                    <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            onToggleParcela(compra.id, parcela.numero, parcela.pago)
+                                        }}
+                                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 cursor-pointer
                       ${parcela.pago
                                                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                                                : 'border-2 border-slate-500'
+                                                : 'border-2 border-slate-500 hover:border-indigo-500 hover:bg-indigo-500/10'
                                             }`}
                                     >
                                         {parcela.pago && <Check size={16} />}
-                                    </div>
+                                    </button>
                                     <div>
                                         <p className={`font-medium ${parcela.pago ? 'line-through text-slate-400' : ''}`}>
                                             Parcela {parcela.numero}/{numParcelas}
@@ -159,10 +163,11 @@ function CompraCard({ compra }) {
 
 export default function DevedorDetalhes() {
     const { id } = useParams()
-    const { devedores, purchases, selectedCard } = useCards() || {
+    const { devedores, purchases, selectedCard, updatePurchase } = useCards() || {
         devedores: [],
         purchases: [],
-        selectedCard: null
+        selectedCard: null,
+        updatePurchase: () => { }
     }
 
     // Find the actual debtor by ID (parse to number for comparison)
@@ -176,6 +181,13 @@ export default function DevedorDetalhes() {
             (selectedCard ? (p.cardId === selectedCard.id || p.card_id === selectedCard.id) : true)
         )
     }, [devedor, purchases, selectedCard])
+
+    const handleToggleParcela = async (purchaseId, parcelaNumero, isPago) => {
+        // If currently paid, uncheck it (set parcelas_pagas to parcelaNumero - 1)
+        // If not paid, mark it as paid (set parcelas_pagas to parcelaNumero)
+        const newParcelasPagas = isPago ? parcelaNumero - 1 : parcelaNumero
+        await updatePurchase(purchaseId, { parcelas_pagas: newParcelasPagas })
+    }
 
     if (!devedor) {
         return (
@@ -290,7 +302,7 @@ export default function DevedorDetalhes() {
                     <div className="space-y-5">
                         {devedorPurchases.map((compra, index) => (
                             <div key={compra.id} style={{ animationDelay: `${(index + 2) * 100}ms` }}>
-                                <CompraCard compra={compra} />
+                                <CompraCard compra={compra} onToggleParcela={handleToggleParcela} />
                             </div>
                         ))}
                     </div>
