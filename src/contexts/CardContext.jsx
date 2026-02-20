@@ -30,9 +30,13 @@ export function CardProvider({ children }) {
             if (devedoresError) throw devedoresError
             if (purchasesError) throw purchasesError
 
+            // Auto-mark installments whose due date has passed
+            const now = new Date()
+            const updatedPurchases = await autoMarkPaidInstallments(purchasesData || [], now)
+
             setCards(cardsData || [])
             setDevedores(devedoresData || [])
-            setPurchases(purchasesData || [])
+            setPurchases(updatedPurchases)
             setAdjustments(adjustmentsData || [])
 
             const savedCardId = localStorage.getItem('selectedCardId')
@@ -46,6 +50,60 @@ export function CardProvider({ children }) {
         } finally {
             setLoading(false)
         }
+    }
+
+    // Auto-mark installments as paid when their due month has passed
+    const autoMarkPaidInstallments = async (purchasesList, now) => {
+        const currentYear = now.getFullYear()
+        const currentMonth = now.getMonth() // 0-indexed
+
+        const updates = []
+
+        for (const purchase of purchasesList) {
+            const dataCompra = new Date(purchase.data_compra)
+            const numParcelas = purchase.num_parcelas || 0
+            const currentPagas = purchase.parcelas_pagas || 0
+
+            // Calculate how many installments have a due date <= end of previous month
+            // Installment i (1-based) is due at: dataCompra month + i
+            let shouldBePaid = 0
+            for (let i = 1; i <= numParcelas; i++) {
+                const dueDate = new Date(dataCompra.getFullYear(), dataCompra.getMonth() + i, dataCompra.getDate())
+                // If the due date is before the 1st of the current month, it should be paid
+                const firstOfCurrentMonth = new Date(currentYear, currentMonth, 1)
+                if (dueDate < firstOfCurrentMonth) {
+                    shouldBePaid = i
+                }
+            }
+
+            // Only update if we need to mark MORE as paid (never decrease)
+            if (shouldBePaid > currentPagas) {
+                updates.push({ id: purchase.id, parcelas_pagas: shouldBePaid })
+            }
+        }
+
+        // Batch update in DB
+        if (updates.length > 0) {
+            console.log(`Auto-marcando ${updates.length} compras com parcelas vencidas...`)
+            for (const update of updates) {
+                const { error } = await supabase
+                    .from('purchases')
+                    .update({ parcelas_pagas: update.parcelas_pagas })
+                    .eq('id', update.id)
+
+                if (error) {
+                    console.error('Erro ao auto-marcar parcela:', error, update)
+                }
+            }
+
+            // Update local data
+            return purchasesList.map(p => {
+                const upd = updates.find(u => u.id === p.id)
+                return upd ? { ...p, parcelas_pagas: upd.parcelas_pagas } : p
+            })
+        }
+
+        return purchasesList
     }
 
     useEffect(() => {
