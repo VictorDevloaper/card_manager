@@ -10,82 +10,105 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
     const meses = []
     const hoje = new Date()
 
-    // Filter purchases
+    // Filter purchases for this card
     const cardPurchases = purchases.filter(p => p.cardId === cardId || p.card_id === cardId)
 
+    // Pre-generate 12 months of reference dates and names
+    const monthRefs = []
     for (let i = 0; i < 12; i++) {
         const dataReferencia = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1, 1)
         const mesNome = dataReferencia.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-
-        const devedores = {} // { Name: { total: 0, items: [] } }
-        let total = 0
-
-        cardPurchases.forEach(compra => {
-            const dataCompra = new Date(compra.dataCompra || compra.data_compra)
-
-            // Assume first installment is next month after purchase
-            const startMonthDiff = (dataReferencia.getFullYear() - dataCompra.getFullYear()) * 12 + (dataReferencia.getMonth() - dataCompra.getMonth())
-
-            // Logic: if startMonthDiff == 1, it's installment #1. 
-            // If purchase was in Jan, Reference is Feb -> Diff is 1. Installment 1.
-
-            if (startMonthDiff > 0 && startMonthDiff <= compra.numParcelas) {
-                const parcelaIndex = startMonthDiff // 1-based
-                const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
-
-                // Skip already-paid installments
-                if (parcelaIndex <= parcelasPagas) return
-
-                // Check for adjustments
-                const adj = adjustments.find(a =>
-                    (a.purchaseId === compra.id || a.purchase_id === compra.id) &&
-                    a.parcelaIndex === parcelaIndex
-                )
-
-                if (adj?.isDeleted || adj?.is_deleted) return
-
-                let valorParcela = compra.valorTotal / compra.numParcelas
-                if (adj?.customValue) valorParcela = parseFloat(adj.customValue)
-                if (adj?.custom_value) valorParcela = parseFloat(adj.custom_value)
-
-                // Add to devedor
-                const nome = compra.devedorNome || compra.devedor_nome || 'Desconhecido'
-                if (!devedores[nome]) {
-                    devedores[nome] = { total: 0, items: [] }
-                }
-
-                devedores[nome].total += valorParcela
-                devedores[nome].items.push({
-                    descricao: compra.descricao,
-                    parcela: `${parcelaIndex}/${compra.numParcelas}`,
-                    valor: valorParcela,
-                    purchaseId: compra.id,
-                    parcelaIndex: parcelaIndex,
-                    numParcelas: compra.numParcelas,
-                    parcelasPagas: parcelasPagas
-                })
-
-                total += valorParcela
-            }
+        monthRefs.push({
+            date: dataReferencia,
+            mesNome,
+            month: dataReferencia.getMonth(),
+            year: dataReferencia.getFullYear(),
+            devedores: {},
+            total: 0
         })
+    }
 
-        // Simplify devedores object for view
+    // For each purchase, resolve each installment to its target month
+    cardPurchases.forEach(compra => {
+        const dataCompra = new Date(compra.dataCompra || compra.data_compra)
+        const numParcelas = compra.numParcelas || compra.num_parcelas
+        const valorTotal = compra.valorTotal || compra.valor_total
+        const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
+        const nome = compra.devedorNome || compra.devedor_nome || 'Desconhecido'
+        const baseValorParcela = valorTotal / numParcelas
+
+        for (let parcelaIndex = 1; parcelaIndex <= numParcelas; parcelaIndex++) {
+            // Skip already-paid installments
+            if (parcelaIndex <= parcelasPagas) continue
+
+            // Check for adjustments
+            const adj = adjustments.find(a =>
+                (a.purchaseId === compra.id || a.purchase_id === compra.id) &&
+                (a.parcelaIndex === parcelaIndex || a.parcela_index === parcelaIndex)
+            )
+
+            if (adj?.isDeleted || adj?.is_deleted) continue
+
+            // Resolve the value
+            let valorParcela = baseValorParcela
+            if (adj?.customValue) valorParcela = parseFloat(adj.customValue)
+            if (adj?.custom_value) valorParcela = parseFloat(adj.custom_value)
+
+            // Resolve the target month
+            let targetMonth, targetYear
+
+            const customDate = adj?.customDate || adj?.custom_date
+            if (customDate) {
+                // Use the custom date to determine the month
+                const d = new Date(customDate)
+                targetMonth = d.getMonth()
+                targetYear = d.getFullYear()
+            } else {
+                // Default: installment N goes to purchaseMonth + N
+                const installmentDate = new Date(dataCompra.getFullYear(), dataCompra.getMonth() + parcelaIndex, 1)
+                targetMonth = installmentDate.getMonth()
+                targetYear = installmentDate.getFullYear()
+            }
+
+            // Find the matching month bucket
+            const bucket = monthRefs.find(m => m.month === targetMonth && m.year === targetYear)
+            if (!bucket) continue // Outside the 12-month window
+
+            // Add to devedor in this bucket
+            if (!bucket.devedores[nome]) {
+                bucket.devedores[nome] = { total: 0, items: [] }
+            }
+
+            bucket.devedores[nome].total += valorParcela
+            bucket.devedores[nome].items.push({
+                descricao: compra.descricao,
+                parcela: `${parcelaIndex}/${numParcelas}`,
+                valor: valorParcela,
+                purchaseId: compra.id,
+                parcelaIndex: parcelaIndex,
+                numParcelas: numParcelas,
+                parcelasPagas: parcelasPagas
+            })
+
+            bucket.total += valorParcela
+        }
+    })
+
+    // Format output
+    monthRefs.forEach(bucket => {
         const devedoresFormatted = {}
-        Object.entries(devedores).forEach(([nome, data]) => {
+        Object.entries(bucket.devedores).forEach(([nome, data]) => {
             devedoresFormatted[nome] = data.total
         })
 
-        // Also keep detailed items for the detailed view
-        const devedoresDetailed = devedores
-
         meses.push({
-            mes: mesNome,
-            total,
+            mes: bucket.mesNome,
+            total: bucket.total,
             devedores: devedoresFormatted,
-            devedoresDetailed: devedoresDetailed,
-            numDevedores: Object.keys(devedores).length
+            devedoresDetailed: bucket.devedores,
+            numDevedores: Object.keys(bucket.devedores).length
         })
-    }
+    })
 
     return meses
 }
@@ -121,39 +144,31 @@ export const calculateDashboardStats = (purchases, currentCardId, adjustments = 
 
         // Calculate active installments
         for (let i = 1; i <= numParcelas; i++) {
-            // Calculate Month for this installment
-            // 1st installment = dataCompra month + 1
-            const installmentDate = new Date(dataCompra.getFullYear(), dataCompra.getMonth() + i, 1)
-
-            // Check if already paid (in the past relative to current month/year view? 
-            // Usually "paid" means date < now. Or strictly previous months.
-            // Dashboard logic says: 
-            // "startMonth = dataCompra.getMonth() + 1"
-            // "monthsSinceStart = (currentYear - startYear)*12 + (currentMonth - startMonth)"
-            // "parcelasPagas = Math.min(monthsSinceStart + 1, numParcelas)"
-
-            // Let's stick to checking date < Next Month Start
-            const nextMonthStart = new Date(currentYear, currentMonth + 1, 1)
-            const currentMonthStart = new Date(currentYear, currentMonth, 1)
+            // Skip already-paid installments
+            if (i <= parcelasPagas) continue
 
             // Check adjustment
             const adj = adjustments.find(a =>
                 (a.purchaseId === compra.id || a.purchase_id === compra.id) &&
-                a.parcelaIndex === i
+                (a.parcelaIndex === i || a.parcela_index === i)
             )
 
             if (adj?.isDeleted || adj?.is_deleted) continue
-
-            // Skip already-paid installments
-            if (i <= parcelasPagas) continue
 
             let valorParcela = baseValorParcela
             if (adj?.customValue) valorParcela = parseFloat(adj.customValue)
             if (adj?.custom_value) valorParcela = parseFloat(adj.custom_value)
 
-            // Is it future/unpaid?
-            // Assumption: Current month is NOT paid yet unless explicitly marked. 
-            // Logic in Dashboard.js seemed to assume previous months are paid.
+            // Resolve installment date (respect custom_date)
+            let installmentDate
+            const customDate = adj?.customDate || adj?.custom_date
+            if (customDate) {
+                installmentDate = new Date(customDate)
+            } else {
+                installmentDate = new Date(dataCompra.getFullYear(), dataCompra.getMonth() + i, 1)
+            }
+
+            const currentMonthStart = new Date(currentYear, currentMonth, 1)
 
             if (installmentDate >= currentMonthStart) {
                 // It is outstanding
