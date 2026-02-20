@@ -72,3 +72,18 @@ FROM devedores d
 LEFT JOIN compras c ON c.devedor_id = d.id
 LEFT JOIN parcelas p ON p.compra_id = c.id
 GROUP BY d.id, d.nome, d.telefone;
+
+-- Tabela de ajustes de parcelas (exclusão ou edição de valores/datas específicas)
+CREATE TABLE IF NOT EXISTS purchase_adjustments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    purchase_id UUID NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
+    parcela_index INTEGER NOT NULL, -- 1-based index da parcela original
+    is_deleted BOOLEAN DEFAULT FALSE,
+    custom_value DECIMAL(10, 2), -- Se não for nulo, sobrepõe o valor original
+    custom_date DATE, -- Se não for nulo, sobrepõe a data original
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_adjustments_purchase ON purchase_adjustments(purchase_id);
+

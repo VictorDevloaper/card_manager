@@ -8,6 +8,7 @@ export function CardProvider({ children }) {
     const [cards, setCards] = useState([])
     const [devedores, setDevedores] = useState([])
     const [purchases, setPurchases] = useState([])
+    const [adjustments, setAdjustments] = useState([])
     const [selectedCardId, setSelectedCardId] = useState(null)
 
     const fetchInitialData = async () => {
@@ -16,11 +17,13 @@ export function CardProvider({ children }) {
             const [
                 { data: cardsData, error: cardsError },
                 { data: devedoresData, error: devedoresError },
-                { data: purchasesData, error: purchasesError }
+                { data: purchasesData, error: purchasesError },
+                { data: adjustmentsData, error: adjustmentsDataError }
             ] = await Promise.all([
                 supabase.from('cards').select('*').order('nome'),
                 supabase.from('devedores').select('*').order('nome'),
-                supabase.from('purchases').select('*').order('data_compra', { ascending: false })
+                supabase.from('purchases').select('*').order('data_compra', { ascending: false }),
+                supabase.from('purchase_adjustments').select('*')
             ])
 
             if (cardsError) throw cardsError
@@ -155,6 +158,37 @@ export function CardProvider({ children }) {
         setPurchases(prev => prev.filter(p => p.id !== id))
     }
 
+    const addAdjustment = async (adjustmentData) => {
+        const { data, error } = await supabase
+            .from('purchase_adjustments')
+            .insert([{
+                purchase_id: adjustmentData.purchaseId,
+                parcela_index: adjustmentData.parcelaIndex,
+                is_deleted: adjustmentData.isDeleted || false,
+                custom_value: adjustmentData.customValue,
+                custom_date: adjustmentData.customDate
+            }])
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Erro ao adicionar ajuste:', error)
+            return null
+        }
+        setAdjustments(prev => [...prev, data])
+        return data
+    }
+
+    // Normalizing DB snake_case to app camelCase for backward compatibility
+    const normalizedAdjustments = adjustments.map(a => ({
+        ...a,
+        purchaseId: a.purchase_id,
+        parcelaIndex: a.parcela_index,
+        isDeleted: a.is_deleted,
+        customValue: a.custom_value,
+        customDate: a.custom_date
+    }))
+
     // Normalizing DB snake_case to app camelCase for backward compatibility
     const normalizedPurchases = purchases.map(p => ({
         ...p,
@@ -163,8 +197,15 @@ export function CardProvider({ children }) {
         devedorNome: p.devedor_nome,
         valorTotal: p.valor_total,
         numParcelas: p.num_parcelas,
+        numParcelas: p.num_parcelas,
         dataCompra: p.data_compra
     }))
+    // Also ensuring purchases have normal camelCase if they come from DB directly as snake_case in fetchInitialData
+    // The previous implementation of normalizedPurchases was map over 'purchases'.
+    // If 'purchases' comes from select('*'), it is snake_case.
+    // So 'p.cardId' might be undefined if not mapped yet.
+    // The previous code mapped p.card_id to cardId. Correct.
+
 
     return (
         <CardContext.Provider value={{
@@ -181,7 +222,11 @@ export function CardProvider({ children }) {
             removeDevedor,
             purchases: normalizedPurchases,
             addPurchase,
-            removePurchase
+            removePurchase,
+            adjustments: normalizedAdjustments,
+            addAdjustment,
+            adjustments: normalizedAdjustments,
+            addAdjustment
         }}>
             {children}
         </CardContext.Provider>

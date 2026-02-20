@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCards } from '../contexts/CardContext'
+import { calculateDashboardStats } from '../utils/finance'
 import {
     TrendingUp,
     Users,
@@ -15,96 +16,6 @@ import {
     Check,
     ChevronDown
 } from 'lucide-react'
-
-// Mock Data (Mantendo o resto dos dados mockados por enquanto, exceto limite)
-// Helper para calcular projeções e totais baseados nas compras reais
-const calculateDashboardStats = (purchases, currentCardId) => {
-    if (!currentCardId) return {
-        limiteUsado: 0,
-        totalDevedores: 0,
-        parcelasVencer: 0,
-        devedores: [],
-        proximasFaturas: []
-    }
-
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-
-    // Filtrar compras deste cartão
-    const cardPurchases = purchases.filter(p => p.cardId === currentCardId)
-
-    let limiteUsado = 0
-    let parcelasVencerProximos30Dias = 0
-    const devedoresMap = {}
-    const faturasMap = {}
-
-    cardPurchases.forEach(compra => {
-        const valorTotal = compra.valorTotal
-        const numParcelas = compra.numParcelas
-        const valorParcela = valorTotal / numParcelas
-        const dataCompra = new Date(compra.dataCompra)
-
-        const startMonth = dataCompra.getMonth() + 1 // Começa a pagar no mês seguinte
-        const startYear = dataCompra.getFullYear()
-
-        const monthsSinceStart = (currentYear - startYear) * 12 + (currentMonth - startMonth)
-
-        // Calcular parcelas pagas
-        let parcelasPagas = 0
-        if (monthsSinceStart >= 0) {
-            parcelasPagas = Math.min(monthsSinceStart + 1, numParcelas)
-        }
-
-        const parcelasRestantes = Math.max(0, numParcelas - parcelasPagas)
-        const saldoDevedor = parcelasRestantes * valorParcela
-
-        limiteUsado += saldoDevedor
-
-        if (parcelasRestantes > 0) {
-            // Agrupar por Devedor
-            if (!devedoresMap[compra.devedorId]) {
-                devedoresMap[compra.devedorId] = {
-                    id: compra.devedorId,
-                    nome: compra.devedorNome || 'Devedor',
-                    total: 0,
-                    parcelas: 0
-                }
-            }
-            devedoresMap[compra.devedorId].total += saldoDevedor
-            devedoresMap[compra.devedorId].parcelas += parcelasRestantes
-
-            // Parcelas a vencer (próximo mês)
-            parcelasVencerProximos30Dias += 1
-
-            // Projeção de Faturas (próximos 4 meses)
-            for (let i = 0; i < Math.min(parcelasRestantes, 12); i++) {
-                const targetDate = new Date(currentYear, currentMonth + i + 1, 1)
-                const key = targetDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
-
-                if (!faturasMap[key]) faturasMap[key] = 0
-                faturasMap[key] += valorParcela
-            }
-        }
-    })
-
-    const devedores = Object.values(devedoresMap).sort((a, b) => b.total - a.total).slice(0, 5)
-
-    // Sort faturas by date logic could be complex with key 'mmm/yyyy', so we just take entries and hopefully they are inserted roughly in order or we sort later. 
-    // Simplified: formatted date keys usually sort chronologically if year comes first, but here we have 'Mar/2026'.
-    // Let's rely on insertion order for now (future months added sequentially).
-    const proximasFaturas = Object.entries(faturasMap)
-        .map(([mes, valor]) => ({ mes: mes.replace('.', ''), valor }))
-        .slice(0, 4)
-
-    return {
-        limiteUsado,
-        totalDevedores: Object.keys(devedoresMap).length,
-        parcelasVencer: parcelasVencerProximos30Dias,
-        devedores,
-        proximasFaturas
-    }
-}
 
 function AddCardModal({ isOpen, onClose }) {
     const { addCard } = useCards()
@@ -290,14 +201,14 @@ function LimiteCard({ usado, total }) {
 
 export default function Dashboard() {
     const navigate = useNavigate()
-    const { cards, selectedCard, selectedCardId, setSelectedCardId, purchases } = useCards()
+    const { cards, selectedCard, selectedCardId, setSelectedCardId, purchases, adjustments } = useCards()
     const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false)
     const [isCardMenuOpen, setIsCardMenuOpen] = useState(false)
 
-    // Gerar dados reais baseados nas compras
+    // Using centralized logic for consistency
     const dashboardData = useMemo(() => {
-        return calculateDashboardStats(purchases || [], selectedCardId)
-    }, [purchases, selectedCardId])
+        return calculateDashboardStats(purchases || [], selectedCardId, adjustments || [])
+    }, [purchases, selectedCardId, adjustments])
 
     // Fallback se não houver cartão (não deve acontecer com o context, mas por segurança)
     if (!selectedCard) {

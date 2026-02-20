@@ -1,67 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, TrendingDown, ChevronDown, Sparkles, PartyPopper, Wallet, Receipt, CreditCard } from 'lucide-react'
+import { Calendar, TrendingDown, ChevronDown, Sparkles, PartyPopper, Wallet, Receipt, CreditCard, User, Filter, X, Calculator, Edit2 } from 'lucide-react'
 import { useCards } from '../contexts/CardContext'
+import { generateProjecao } from '../utils/finance'
+import SimuladorFatura from '../components/SimuladorFatura'
+import FaturaEditModal from '../components/FaturaEditModal'
 
-// Gerar projeção de faturas para os próximos 12 meses
-const generateProjecao = (cardId, purchases = []) => {
-    if (!cardId) return []
-    const meses = []
-    const hoje = new Date()
-
-    // Filtrar compras do cartão
-    const cardPurchases = purchases.filter(p => p.cardId === cardId)
-
-    for (let i = 0; i < 12; i++) {
-        const dataReferencia = new Date(hoje.getFullYear(), hoje.getMonth() + i + 1, 1) // +1 para começar do próximo mês (ou este, dependendo da lógica)
-        // Ajuste: Vamos assumir que 'i=0' é o mês atual/próximo.
-        // Se quisermos começar do mês seguinte (Faturas Futuras), +1.
-
-        const mesNome = dataReferencia.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-        const monthIndex = i // 0 a 11 (offset a partir de hoje)
-
-        const devedores = {}
-        let total = 0
-
-        cardPurchases.forEach(compra => {
-            const dataCompra = new Date(compra.dataCompra)
-            // Lógica de cálculo de parcelas ativa para este mês "i"
-            // Assumindo início de pagamento no mês seguinte à compra
-            const startMonthDiff = (dataReferencia.getFullYear() - dataCompra.getFullYear()) * 12 + (dataReferencia.getMonth() - dataCompra.getMonth())
-
-            // startMonthDiff = 1 (se comprou mês passado e estamos no mês atual e paga-se no seguinte???)
-            // Simplificando: Assumimos que a parcela 1 é no mês seguinte à data da compra.
-            // Se startMonthDiff == 1, é a parcela 1.
-            // Se startMonthDiff > 0 && startMonthDiff <= numParcelas.
-
-            // Ajuste fino: Se a compra foi HOJE (jan), parcela 1 em FEV.
-            // Se dataReferencia é FEV. 
-            // Diff (fev - jan) = 1.
-
-            if (startMonthDiff > 0 && startMonthDiff <= compra.numParcelas) {
-                const valorParcela = compra.valorTotal / compra.numParcelas
-
-                // Add to devedor
-                const nome = compra.devedorNome || 'Desconhecido'
-                if (!devedores[nome]) devedores[nome] = 0
-                devedores[nome] += valorParcela
-                total += valorParcela
-            }
-        })
-
-        meses.push({
-            mes: mesNome,
-            total,
-            devedores,
-            numDevedores: Object.keys(devedores).length
-        })
-    }
-
-    return meses
-}
-
-function FaturaCard({ fatura, index }) {
-    const [isExpanded, setIsExpanded] = useState(index === 0)
+function FaturaCard({ fatura, index, isFiltered, onEditItem }) {
+    const [isExpanded, setIsExpanded] = useState(index === 0 || isFiltered)
     const maxValor = Math.max(...Object.values(fatura.devedores), 1)
 
     const getBarWidth = (valor, max) => {
@@ -114,39 +60,73 @@ function FaturaCard({ fatura, index }) {
             </div>
 
             {isExpanded && fatura.numDevedores > 0 && (
-                <div className="border-t border-slate-800/50 bg-[#0B0F19]/50 p-6 lg:p-8 space-y-6">
+                <div className="border-t border-slate-800/50 bg-[#0B0F19]/50 p-6 lg:p-8 space-y-8">
                     {Object.entries(fatura.devedores).map(([nome, valor], idx) => (
-                        <div key={nome} className="flex items-center gap-6 animate-fadeInUp" style={{ animationDelay: `${idx * 50}ms` }}>
+                        <div key={nome} className="animate-fadeInUp" style={{ animationDelay: `${idx * 50}ms` }}>
 
-                            {/* Avatar */}
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-white font-bold text-base shrink-0 shadow-inner">
-                                {nome.charAt(0)}
-                            </div>
-
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium text-slate-200">{nome}</span>
-                                    <span className="font-bold text-indigo-300">
-                                        R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
+                            {/* Devedor Header */}
+                            <div className="flex items-center gap-6 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-inner">
+                                    {nome.charAt(0)}
                                 </div>
-
-                                {/* Progress Bar */}
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-indigo-500 rounded-full relative"
-                                        style={{ width: getBarWidth(valor, maxValor) }}
-                                    >
-                                        <div className="absolute inset-0 bg-white/20" />
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="font-bold text-slate-200 text-lg">{nome}</span>
+                                        <span className="font-bold text-indigo-300">
+                                            R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-indigo-500 rounded-full relative"
+                                            style={{ width: getBarWidth(valor, maxValor) }}
+                                        >
+                                            <div className="absolute inset-0 bg-white/20" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Detalhes das Compras */}
+                            <div className="ml-16 space-y-2">
+                                {fatura.devedoresDetailed[nome]?.items.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/item">
+                                        <div className='flex items-center gap-3'>
+                                            <div className="w-1 h-8 rounded-full bg-indigo-500/30"></div>
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-300 group-hover/item:text-white transition-colors">
+                                                    {item.descricao}
+                                                </p>
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                                                    Parcela {item.parcela}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            <p className="text-sm font-bold text-slate-400 group-hover/item:text-indigo-300 transition-colors">
+                                                R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </p>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onEditItem(item)
+                                                }}
+                                                className="p-1.5 rounded-lg text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10 opacity-0 group-hover/item:opacity-100 transition-all"
+                                                title="Editar Parcela"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Empty State when Expanded but total is 0 (Just in case logic allows) */}
             {isExpanded && fatura.numDevedores === 0 && (
                 <div className="border-t border-emerald-500/10 bg-emerald-500/5 p-8 text-center">
                     <p className="text-emerald-400 font-medium">Nenhum débito para este mês. Tudo limpo! 🎉</p>
@@ -158,16 +138,63 @@ function FaturaCard({ fatura, index }) {
 
 export default function Faturas() {
     const navigate = useNavigate()
-    const { cards, selectedCard, setSelectedCardId, purchases } = useCards() || {
+    const { cards, selectedCard, setSelectedCardId, purchases, devedores, adjustments } = useCards() || {
         cards: [],
         selectedCard: { nome: 'Demo', id: 1 },
         setSelectedCardId: () => { },
-        purchases: []
+        purchases: [],
+        devedores: [],
+        adjustments: []
     }
     const [isCardMenuOpen, setIsCardMenuOpen] = useState(false)
-    const projecao = useMemo(() => generateProjecao(selectedCard?.id, purchases), [selectedCard?.id, purchases])
+    const [selectedDevedorId, setSelectedDevedorId] = useState('')
+    const [isSimuladorOpen, setIsSimuladorOpen] = useState(false)
+    const [editingItem, setEditingItem] = useState(null)
 
-    // Totais
+    // Generate projection using centralized utility
+    const fullProjecao = useMemo(() =>
+        generateProjecao(selectedCard?.id, purchases, adjustments),
+        [selectedCard?.id, purchases, adjustments]
+    )
+
+    // Filter projection if debtor selected
+    const projecao = useMemo(() => {
+        if (!selectedDevedorId) return fullProjecao
+
+        // Filter functionality: Keep months but only show selected debtor data
+        return fullProjecao.map(mes => {
+            const devedorNome = devedores.find(d => d.id === parseInt(selectedDevedorId))?.nome
+            if (!devedorNome) return mes
+
+            // Check if this debtor has debt in this month
+            if (!mes.devedores[devedorNome]) {
+                // Return empty/zeroed month for this view or skip? 
+                // Better to show month with 0 if we want to keep timeline, 
+                // or just modify the 'devedores' obj.
+                // Let's modify so FaturaCard only shows this debtor.
+                return {
+                    ...mes,
+                    total: 0,
+                    devedores: {},
+                    devedoresDetailed: {},
+                    numDevedores: 0
+                }
+            }
+
+            const valor = mes.devedores[devedorNome]
+            const details = mes.devedoresDetailed[devedorNome]
+
+            return {
+                ...mes,
+                total: valor,
+                devedores: { [devedorNome]: valor },
+                devedoresDetailed: { [devedorNome]: details },
+                numDevedores: 1
+            }
+        })
+    }, [fullProjecao, selectedDevedorId, devedores])
+
+    // Totais (baseado na projeção filtrada)
     const totalGeral = projecao.reduce((acc, f) => acc + f.total, 0)
     const mesesComFatura = projecao.filter(f => f.total > 0).length
     const ultimaFaturaIndex = projecao.findIndex(f => f.total === 0)
@@ -176,7 +203,7 @@ export default function Faturas() {
     return (
         <div className="space-y-10">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-fadeInUp relative z-30">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 animate-fadeInUp relative z-30">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-indigo-500/10 rounded-lg">
@@ -188,67 +215,105 @@ export default function Faturas() {
                         Visualize e planeje seus pagamentos futuros para os próximos 12 meses.
                     </p>
 
-                    {/* Card Selector */}
-                    <div className="relative inline-block z-50">
-                        <button
-                            onClick={() => setIsCardMenuOpen(!isCardMenuOpen)}
-                            className="flex items-center gap-3 bg-[#131620] border border-white/10 hover:border-indigo-500/50 px-4 py-2.5 rounded-xl transition-all w-full md:w-auto min-w-[240px] justify-between group shadow-lg"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
-                                    <CreditCard size={14} className="text-white" />
+                    <div className="flex flex-wrap gap-3">
+                        {/* Card Selector */}
+                        <div className="relative inline-block z-50">
+                            <button
+                                onClick={() => setIsCardMenuOpen(!isCardMenuOpen)}
+                                className="flex items-center gap-3 bg-[#131620] border border-white/10 hover:border-indigo-500/50 px-4 py-2.5 rounded-xl transition-all min-w-[240px] justify-between group shadow-lg"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
+                                        <CreditCard size={14} className="text-white" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Cartão Atual</p>
+                                        <p className="text-white font-bold">{selectedCard?.nome}</p>
+                                    </div>
                                 </div>
-                                <div className="text-left">
-                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Cartão Atual</p>
-                                    <p className="text-white font-bold">{selectedCard?.nome}</p>
-                                </div>
-                            </div>
-                            <ChevronDown size={18} className={`text-slate-500 transition-transform ${isCardMenuOpen ? 'rotate-180' : ''}`} />
-                        </button>
+                                <ChevronDown size={18} className={`text-slate-500 transition-transform ${isCardMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
 
-                        {/* Dropdown Menu */}
-                        {isCardMenuOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsCardMenuOpen(false)} />
-                                <div className="absolute top-full left-0 mt-2 w-full md:w-[280px] bg-[#131620] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeInUp">
-                                    <div className="p-2 border-b border-white/5">
-                                        <p className="text-xs font-bold text-slate-500 px-3 py-2 uppercase tracking-wider">Seus Cartões</p>
-                                    </div>
-                                    <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-2 space-y-1">
-                                        {cards.map(card => (
+                            {/* Dropdown Menu */}
+                            {isCardMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsCardMenuOpen(false)} />
+                                    <div className="absolute top-full left-0 mt-2 w-full md:w-[280px] bg-[#131620] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeInUp">
+                                        <div className="p-2 border-b border-white/5">
+                                            <p className="text-xs font-bold text-slate-500 px-3 py-2 uppercase tracking-wider">Seus Cartões</p>
+                                        </div>
+                                        <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                            {cards.map(card => (
+                                                <button
+                                                    key={card.id}
+                                                    onClick={() => {
+                                                        setSelectedCardId(card.id)
+                                                        setIsCardMenuOpen(false)
+                                                    }}
+                                                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${selectedCard?.id === card.id
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                                        }`}
+                                                >
+                                                    <div className={`w-2 h-8 rounded-full ${card.cor || 'bg-slate-600'}`} />
+                                                    <div className="flex-1 text-left">
+                                                        <p className="font-bold text-sm">{card.nome}</p>
+                                                        <p className="text-[10px] opacity-70 uppercase tracking-wider">{card.bandeira}</p>
+                                                    </div>
+                                                    {selectedCard?.id === card.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="p-2 border-t border-white/5 bg-[#0B0F19]/50">
                                             <button
-                                                key={card.id}
-                                                onClick={() => {
-                                                    setSelectedCardId(card.id)
-                                                    setIsCardMenuOpen(false)
-                                                }}
-                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${selectedCard?.id === card.id
-                                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                                    }`}
+                                                onClick={() => navigate('/gerenciar-cartoes')}
+                                                className="w-full py-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-wider flex items-center justify-center gap-2"
                                             >
-                                                <div className={`w-2 h-8 rounded-full ${card.cor || 'bg-slate-600'}`} />
-                                                <div className="flex-1 text-left">
-                                                    <p className="font-bold text-sm">{card.nome}</p>
-                                                    <p className="text-[10px] opacity-70 uppercase tracking-wider">{card.bandeira}</p>
-                                                </div>
-                                                {selectedCard?.id === card.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                                <div className="w-4 h-4 rounded-full border border-indigo-500/50 flex items-center justify-center">+</div>
+                                                Gerenciar Cartões
                                             </button>
-                                        ))}
+                                        </div>
                                     </div>
-                                    <div className="p-2 border-t border-white/5 bg-[#0B0F19]/50">
-                                        <button
-                                            onClick={() => navigate('/gerenciar-cartoes')}
-                                            className="w-full py-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-wider flex items-center justify-center gap-2"
-                                        >
-                                            <div className="w-4 h-4 rounded-full border border-indigo-500/50 flex items-center justify-center">+</div>
-                                            Gerenciar Cartões
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                                </>
+                            )}
+                        </div>
+
+                        {/* Debtor Filter */}
+                        <div className="relative inline-block z-40">
+                            <div className="flex items-center gap-2 h-full bg-[#131620] border border-white/10 px-3 rounded-xl hover:border-indigo-500/30 transition-colors">
+                                <Filter size={16} className="text-slate-500" />
+                                <select
+                                    value={selectedDevedorId}
+                                    onChange={(e) => setSelectedDevedorId(e.target.value)}
+                                    className="bg-transparent border-none outline-none text-white text-sm font-medium focus:ring-0 cursor-pointer min-w-[150px] py-2.5"
+                                >
+                                    <option value="" className="bg-[#131620]">Todos os Devedores</option>
+                                    {devedores.map(d => (
+                                        <option key={d.id} value={d.id} className="bg-[#131620]">{d.nome}</option>
+                                    ))}
+                                </select>
+                                {selectedDevedorId && (
+                                    <button
+                                        onClick={() => setSelectedDevedorId('')}
+                                        className="p-1 hover:bg-white/10 rounded-full text-slate-500 hover:text-white transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                {/* Simulator Button */}
+                <div className="flex items-center gap-8">
+                    <button
+                        onClick={() => setIsSimuladorOpen(true)}
+                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95"
+                    >
+                        <Calculator size={20} />
+                        Simular Compra
+                    </button>
                 </div>
             </div>
 
@@ -309,9 +374,30 @@ export default function Faturas() {
             {/* Lista de Faturas */}
             <div className="space-y-6 pb-12">
                 {projecao.map((fatura, index) => (
-                    <FaturaCard key={fatura.mes} fatura={fatura} index={index} />
+                    <FaturaCard
+                        key={fatura.mes}
+                        fatura={fatura}
+                        index={index}
+                        isFiltered={!!selectedDevedorId}
+                        onEditItem={(item) => setEditingItem(item)}
+                    />
                 ))}
             </div>
+
+            {/* Modals */}
+            <SimuladorFatura
+                isOpen={isSimuladorOpen}
+                onClose={() => setIsSimuladorOpen(false)}
+                cardId={selectedCard?.id}
+                purchases={purchases}
+                adjustments={adjustments}
+            />
+
+            <FaturaEditModal
+                isOpen={!!editingItem}
+                onClose={() => setEditingItem(null)}
+                selectedItem={editingItem}
+            />
         </div>
     )
 }
