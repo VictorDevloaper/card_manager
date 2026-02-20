@@ -31,6 +31,10 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
 
             if (startMonthDiff > 0 && startMonthDiff <= compra.numParcelas) {
                 const parcelaIndex = startMonthDiff // 1-based
+                const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
+
+                // Skip already-paid installments
+                if (parcelaIndex <= parcelasPagas) return
 
                 // Check for adjustments
                 const adj = adjustments.find(a =>
@@ -111,6 +115,7 @@ export const calculateDashboardStats = (purchases, currentCardId, adjustments = 
         const dataCompra = new Date(compra.dataCompra || compra.data_compra)
         const devedorId = compra.devedorId || compra.devedor_id
         const devedorNome = compra.devedorNome || compra.devedor_nome || 'Devedor'
+        const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
 
         // Calculate active installments
         for (let i = 1; i <= numParcelas; i++) {
@@ -136,6 +141,9 @@ export const calculateDashboardStats = (purchases, currentCardId, adjustments = 
             )
 
             if (adj?.isDeleted || adj?.is_deleted) continue
+
+            // Skip already-paid installments
+            if (i <= parcelasPagas) continue
 
             let valorParcela = baseValorParcela
             if (adj?.customValue) valorParcela = parseFloat(adj.customValue)

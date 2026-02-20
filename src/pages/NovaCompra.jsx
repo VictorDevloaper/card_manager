@@ -28,6 +28,7 @@ export default function NovaCompra() {
         descricao: '',
         valorTotal: '',
         numParcelas: '1',
+        parcelasPagas: '',
         dataCompra: new Date().toISOString().split('T')[0],
     })
 
@@ -234,6 +235,30 @@ export default function NovaCompra() {
                     />
                 </div>
 
+                {/* Parcelas já pagas (Opcional) */}
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                        <div className="p-1.5 rounded-lg bg-teal-500/20">
+                            <Check size={14} className="text-teal-400" />
+                        </div>
+                        Parcelas Já Pagas
+                        <span className="text-xs text-slate-500 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                        type="number"
+                        name="parcelasPagas"
+                        value={formData.parcelasPagas}
+                        onChange={handleChange}
+                        className="input-field"
+                        placeholder="0"
+                        min="0"
+                        max={parseInt(formData.numParcelas) - 1 || 0}
+                    />
+                    <p className="text-xs text-slate-500">
+                        Informe quantas parcelas já foram pagas, caso a compra não seja nova.
+                    </p>
+                </div>
+
                 {/* Preview */}
                 {formData.valorTotal && (
                     <div className="card p-6 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-pink-500/10 border-indigo-500/20 animate-fadeInUp">
@@ -246,8 +271,16 @@ export default function NovaCompra() {
                                 <p className="text-3xl font-bold gradient-text">
                                     {formData.numParcelas}x de R$ {valorParcela}
                                 </p>
+                                {parseInt(formData.parcelasPagas || 0) > 0 && (
+                                    <p className="text-sm text-teal-400 mt-1 font-medium">
+                                        ✓ {formData.parcelasPagas} parcela(s) já paga(s) — restam {parseInt(formData.numParcelas) - parseInt(formData.parcelasPagas || 0)} parcela(s)
+                                    </p>
+                                )}
                                 <p className="text-sm text-slate-400 mt-2">
-                                    Primeira parcela vencerá no próximo mês
+                                    {parseInt(formData.parcelasPagas || 0) > 0
+                                        ? `Próxima parcela: ${parseInt(formData.parcelasPagas) + 1}ª de ${formData.numParcelas}`
+                                        : 'Primeira parcela vencerá no próximo mês'
+                                    }
                                 </p>
                             </div>
                             <div className="text-right">

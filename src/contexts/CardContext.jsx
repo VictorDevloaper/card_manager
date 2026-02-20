@@ -137,6 +137,7 @@ export function CardProvider({ children }) {
                 descricao: purchaseData.descricao,
                 valor_total: parseFloat(purchaseData.valorTotal),
                 num_parcelas: parseInt(purchaseData.numParcelas),
+                parcelas_pagas: parseInt(purchaseData.parcelasPagas || 0),
                 data_compra: purchaseData.dataCompra
             }])
             .select()
@@ -199,7 +200,7 @@ export function CardProvider({ children }) {
         devedorNome: p.devedor_nome,
         valorTotal: p.valor_total,
         numParcelas: p.num_parcelas,
-        numParcelas: p.num_parcelas,
+        parcelasPagas: p.parcelas_pagas || 0,
         dataCompra: p.data_compra
     }))
     // Also ensuring purchases have normal camelCase if they come from DB directly as snake_case in fetchInitialData
