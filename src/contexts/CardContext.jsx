@@ -33,6 +33,7 @@ export function CardProvider({ children }) {
             setCards(cardsData || [])
             setDevedores(devedoresData || [])
             setPurchases(purchasesData || [])
+            setAdjustments(adjustmentsData || [])
 
             const savedCardId = localStorage.getItem('selectedCardId')
             if (savedCardId && cardsData?.find(c => c.id === parseInt(savedCardId))) {
@@ -173,6 +174,7 @@ export function CardProvider({ children }) {
 
         if (error) {
             console.error('Erro ao adicionar ajuste:', error)
+            alert('Erro ao salvar ajuste. Verifique se a tabela purchase_adjustments existe.')
             return null
         }
         setAdjustments(prev => [...prev, data])

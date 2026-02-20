@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Edit2, Trash2, X, AlertTriangle, Save, Calendar } from 'lucide-react'
 import { useCards } from '../contexts/CardContext'
 
@@ -31,19 +32,21 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
     }
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl animate-fadeInUp" onClick={e => e.stopPropagation()}>
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 min-h-screen overflow-y-auto">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+            <div className="relative bg-[#131620] border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl animate-fadeInUp my-auto" onClick={e => e.stopPropagation()}>
+
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-[#131620] rounded-t-2xl z-10">
                     <h3 className="font-bold text-white">Editar Parcela</h3>
-                    <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors"><X size={20} /></button>
                 </div>
 
                 <div className="p-6">
                     <div className="mb-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                         <p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Item Selecionado</p>
-                        <p className="text-white font-medium">{selectedItem.descricao}</p>
+                        <p className="text-white font-medium break-words">{selectedItem.descricao}</p>
                         <div className="flex justify-between mt-2 text-sm">
                             <span className="text-slate-400">Parcela {selectedItem.parcela}</span>
                             <span className="text-white font-bold">R$ {selectedItem.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -120,6 +123,7 @@ export default function FaturaEditModal({ isOpen, onClose, selectedItem }) {
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
