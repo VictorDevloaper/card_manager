@@ -138,15 +138,17 @@ function FaturaCard({ fatura, index, isFiltered, onEditItem }) {
 
 export default function Faturas() {
     const navigate = useNavigate()
-    const { cards, selectedCard, selectedCardId, setSelectedCardId, purchases, devedores, adjustments } = useCards() || {
-        cards: [],
-        selectedCard: { nome: 'Demo', id: 1 },
-        selectedCardId: null,
-        setSelectedCardId: () => { },
-        purchases: [],
-        devedores: [],
-        adjustments: []
-    }
+    const {
+        cards = [],
+        selectedCard,
+        selectedCardId,
+        setSelectedCardId,
+        purchases = [],
+        devedores = [],
+        adjustments = [],
+        loading = false
+    } = useCards() || {}
+
     const [isCardMenuOpen, setIsCardMenuOpen] = useState(false)
     const [selectedDevedorId, setSelectedDevedorId] = useState('')
     const [isSimuladorOpen, setIsSimuladorOpen] = useState(false)
@@ -169,10 +171,6 @@ export default function Faturas() {
 
             // Check if this debtor has debt in this month
             if (!mes.devedores[devedorNome]) {
-                // Return empty/zeroed month for this view or skip? 
-                // Better to show month with 0 if we want to keep timeline, 
-                // or just modify the 'devedores' obj.
-                // Let's modify so FaturaCard only shows this debtor.
                 return {
                     ...mes,
                     total: 0,
@@ -196,10 +194,44 @@ export default function Faturas() {
     }, [fullProjecao, selectedDevedorId, devedores])
 
     // Totais (baseado na projeção filtrada)
-    const totalGeral = projecao.reduce((acc, f) => acc + f.total, 0)
-    const mesesComFatura = projecao.filter(f => f.total > 0).length
-    const ultimaFaturaIndex = projecao.findIndex(f => f.total === 0)
+    const totalGeral = projecao.reduce((acc, f) => acc + (f.total || 0), 0)
+    const mesesComFatura = projecao.filter(f => (f.total || 0) > 0).length
+    const ultimaFaturaIndex = projecao.findIndex(f => (f.total || 0) === 0)
     const quitacaoMeses = ultimaFaturaIndex === -1 ? 12 : ultimaFaturaIndex
+
+    // Loading State
+    if (loading) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+                <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                <p className="text-slate-400 font-medium animate-pulse">Carregando projeções...</p>
+            </div>
+        )
+    }
+
+    // Fallback if no card is present (similar to Dashboard)
+    if (!selectedCard && selectedCardId !== 'all') {
+        const hasCards = cards.length > 0;
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
+                <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6 animate-fadeInUp">
+                    <Calendar size={40} className="text-indigo-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Projeção de Faturas</h2>
+                <p className="text-slate-400 mb-8 max-w-md">
+                    {hasCards
+                        ? "Selecione um cartão ou 'Todos os Cartões' para visualizar a projeção de faturas."
+                        : "Adicione seu primeiro cartão para visualizar a projeção das suas faturas futuras."}
+                </p>
+                <button
+                    onClick={() => hasCards ? setSelectedCardId('all') : navigate('/gerenciar-cartoes')}
+                    className="btn-primary flex items-center gap-2"
+                >
+                    {hasCards ? "Ver Todos os Cartões" : <><Plus size={20} /> Adicionar Cartão</>}
+                </button>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-10">

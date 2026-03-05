@@ -6,17 +6,17 @@ export const calculateInstallments = (purchases, adjustments = []) => {
 }
 
 export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
-    if (!cardId && cardId !== 'all' && cardId !== null && cardId !== undefined) return []
-    // Actually, if we want 'all' by default when falsy, we can just remove the early return
-    // but let's be explicit.
-    if (cardId === undefined) return []
     const meses = []
     const hoje = new Date()
 
+    // Safety: ensure arrays
+    const safePurchases = Array.isArray(purchases) ? purchases : []
+    const safeAdjustments = Array.isArray(adjustments) ? adjustments : []
+
     // Filter purchases for this card
     const cardPurchases = (cardId === 'all' || !cardId)
-        ? purchases
-        : purchases.filter(p => p.cardId === cardId || p.card_id === cardId)
+        ? safePurchases
+        : safePurchases.filter(p => p.cardId === cardId || p.card_id === cardId)
 
     // Pre-generate 12 months of reference dates and names
     const monthRefs = []
@@ -35,11 +35,16 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
 
     // For each purchase, resolve each installment to its target month
     cardPurchases.forEach(compra => {
-        const dataCompra = new Date(compra.dataCompra || compra.data_compra)
-        const numParcelas = compra.numParcelas || compra.num_parcelas
-        const valorTotal = compra.valorTotal || compra.valor_total
-        const parcelasPagas = compra.parcelasPagas || compra.parcelas_pagas || 0
+        if (!compra) return
+
+        const dataCompra = new Date(compra.dataCompra || compra.data_compra || hoje)
+        const numParcelas = parseInt(compra.numParcelas || compra.num_parcelas || 1)
+        const valorTotal = parseFloat(compra.valorTotal || compra.valor_total || 0)
+        const parcelasPagas = parseInt(compra.parcelasPagas || compra.parcelas_pagas || 0)
         const nome = compra.devedorNome || compra.devedor_nome || 'Desconhecido'
+
+        if (isNaN(valorTotal) || isNaN(numParcelas)) return
+
         const baseValorParcela = valorTotal / numParcelas
 
         for (let parcelaIndex = 1; parcelaIndex <= numParcelas; parcelaIndex++) {
@@ -47,7 +52,7 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
             if (parcelaIndex <= parcelasPagas) continue
 
             // Check for adjustments
-            const adj = adjustments.find(a =>
+            const adj = safeAdjustments.find(a =>
                 (a.purchaseId === compra.id || a.purchase_id === compra.id) &&
                 (a.parcelaIndex === parcelaIndex || a.parcela_index === parcelaIndex)
             )
@@ -58,6 +63,8 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
             let valorParcela = baseValorParcela
             if (adj?.customValue) valorParcela = parseFloat(adj.customValue)
             if (adj?.custom_value) valorParcela = parseFloat(adj.custom_value)
+
+            if (isNaN(valorParcela)) valorParcela = baseValorParcela
 
             // Resolve the target month
             let targetMonth, targetYear
