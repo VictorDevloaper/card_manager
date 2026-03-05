@@ -6,7 +6,10 @@ export const calculateInstallments = (purchases, adjustments = []) => {
 }
 
 export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
-    if (!cardId) return []
+    if (!cardId && cardId !== 'all' && cardId !== null && cardId !== undefined) return []
+    // Actually, if we want 'all' by default when falsy, we can just remove the early return
+    // but let's be explicit.
+    if (cardId === undefined) return []
     const meses = []
     const hoje = new Date()
 

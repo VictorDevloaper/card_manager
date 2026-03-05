@@ -138,9 +138,10 @@ function FaturaCard({ fatura, index, isFiltered, onEditItem }) {
 
 export default function Faturas() {
     const navigate = useNavigate()
-    const { cards, selectedCard, setSelectedCardId, purchases, devedores, adjustments } = useCards() || {
+    const { cards, selectedCard, selectedCardId, setSelectedCardId, purchases, devedores, adjustments } = useCards() || {
         cards: [],
         selectedCard: { nome: 'Demo', id: 1 },
+        selectedCardId: null,
         setSelectedCardId: () => { },
         purchases: [],
         devedores: [],
@@ -268,7 +269,7 @@ export default function Faturas() {
                                                         setSelectedCardId(card.id)
                                                         setIsCardMenuOpen(false)
                                                     }}
-                                                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${selectedCard?.id === card.id
+                                                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${selectedCardId === card.id
                                                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                                                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                                         }`}
@@ -278,7 +279,7 @@ export default function Faturas() {
                                                         <p className="font-bold text-sm">{card.nome}</p>
                                                         <p className="text-[10px] opacity-70 uppercase tracking-wider">{card.bandeira}</p>
                                                     </div>
-                                                    {selectedCard?.id === card.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                                    {selectedCardId === card.id && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                                                 </button>
                                             ))}
                                         </div>
@@ -406,7 +407,7 @@ export default function Faturas() {
             <SimuladorFatura
                 isOpen={isSimuladorOpen}
                 onClose={() => setIsSimuladorOpen(false)}
-                cardId={selectedCard?.id}
+                cardId={selectedCardId}
                 purchases={purchases}
                 adjustments={adjustments}
             />
