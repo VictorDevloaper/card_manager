@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import pg from 'pg'
 import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 dotenv.config()
 
@@ -9,6 +11,9 @@ const { Pool } = pg
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Database connection
 const pool = new Pool({
@@ -19,6 +24,10 @@ const pool = new Pool({
 // Middleware
 app.use(cors())
 app.use(express.json())
+
+// Serve static files from the React app build
+const distPath = path.join(__dirname, '../dist')
+app.use(express.static(distPath))
 
 // ============================================
 // DASHBOARD ROUTES
@@ -322,6 +331,11 @@ app.get('/api/faturas/projecao', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// Catch-all route to serve the React app
+app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'))
 })
 
 // Start server
