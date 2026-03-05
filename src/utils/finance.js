@@ -11,7 +11,9 @@ export const generateProjecao = (cardId, purchases = [], adjustments = []) => {
     const hoje = new Date()
 
     // Filter purchases for this card
-    const cardPurchases = purchases.filter(p => p.cardId === cardId || p.card_id === cardId)
+    const cardPurchases = (cardId === 'all' || !cardId)
+        ? purchases
+        : purchases.filter(p => p.cardId === cardId || p.card_id === cardId)
 
     // Pre-generate 12 months of reference dates and names
     const monthRefs = []

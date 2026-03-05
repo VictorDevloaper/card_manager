@@ -153,8 +153,8 @@ export default function Faturas() {
 
     // Generate projection using centralized utility
     const fullProjecao = useMemo(() =>
-        generateProjecao(selectedCard?.id, purchases, adjustments),
-        [selectedCard?.id, purchases, adjustments]
+        generateProjecao(selectedCardId, purchases, adjustments),
+        [selectedCardId, purchases, adjustments]
     )
 
     // Filter projection if debtor selected
@@ -228,7 +228,7 @@ export default function Faturas() {
                                     </div>
                                     <div className="text-left">
                                         <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Cartão Atual</p>
-                                        <p className="text-white font-bold">{selectedCard?.nome}</p>
+                                        <p className="text-white font-bold">{selectedCardId === 'all' ? 'Todos os Cartões' : selectedCard?.nome}</p>
                                     </div>
                                 </div>
                                 <ChevronDown size={18} className={`text-slate-500 transition-transform ${isCardMenuOpen ? 'rotate-180' : ''}`} />
@@ -243,6 +243,24 @@ export default function Faturas() {
                                             <p className="text-xs font-bold text-slate-500 px-3 py-2 uppercase tracking-wider">Seus Cartões</p>
                                         </div>
                                         <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedCardId('all')
+                                                    setIsCardMenuOpen(false)
+                                                }}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${selectedCardId === 'all'
+                                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                                    }`}
+                                            >
+                                                <div className="w-2 h-8 rounded-full bg-slate-400" />
+                                                <div className="flex-1 text-left">
+                                                    <p className="font-bold text-sm">Todos os Cartões</p>
+                                                    <p className="text-[10px] opacity-70 uppercase tracking-wider">Visão Consolidada</p>
+                                                </div>
+                                                {selectedCardId === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                            </button>
+
                                             {cards.map(card => (
                                                 <button
                                                     key={card.id}
