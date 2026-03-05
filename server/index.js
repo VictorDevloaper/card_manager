@@ -4,6 +4,7 @@ import pg from 'pg'
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 dotenv.config()
 
@@ -26,7 +27,17 @@ app.use(cors())
 app.use(express.json())
 
 // Serve static files from the React app build
-const distPath = path.join(__dirname, '../dist')
+const distPath = path.resolve(__dirname, '../dist')
+const indexPath = path.join(distPath, 'index.html')
+
+// Log context for Render/Debug
+console.log(`[Server] Servindo arquivos estáticos de: ${distPath}`)
+if (fs.existsSync(indexPath)) {
+    console.log(`[Server] ✅ Arquivo index.html encontrado.`)
+} else {
+    console.warn(`[Server] ⚠️ AVISO: Arquivo index.html NÃO ENCONTRADO em: ${indexPath}`)
+}
+
 app.use(express.static(distPath))
 
 // ============================================
